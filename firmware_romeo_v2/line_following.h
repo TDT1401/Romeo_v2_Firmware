@@ -1,31 +1,17 @@
 #ifndef LINE_FOLLOWING_H
 #define LINE_FOLLOWING_H
 
-int lineLastDirection = 0; // -1 = left, 1 = right, 0 = not established
-float previousLineError = 0.0;
-bool hasPreviousLineError = false;
-float filteredLeftLine = 0.0;
-float filteredRightLine = 0.0;
-bool hasFilteredLineReadings = false;
-unsigned long previousLineUpdateMs = 0;
-byte lineMissingSamples = 0;
-byte lineFoundSamples = 0;
-bool lineSearching = false;
-byte lineSearchSweep = 0;
-unsigned long lineSearchSweepStartMs = 0;
+struct LineState {
+  int direction; // -1 = left, 1 = right, 0 = unknown
+  float leftFiltered, rightFiltered;
+  byte leftSpeed, rightSpeed, missing, found;
+  bool filtered, motorCommand, searching;
+  unsigned long lastUpdateMs, searchStartMs;
+};
+LineState lineState = {};
 
 void resetLineFollow() {
-  lineLastDirection = 0;
-  previousLineError = 0.0;
-  hasPreviousLineError = false;
-  filteredLeftLine = filteredRightLine = 0.0;
-  hasFilteredLineReadings = false;
-  previousLineUpdateMs = 0;
-  lineMissingSamples = 0;
-  lineFoundSamples = 0;
-  lineSearching = false;
-  lineSearchSweep = 0;
-  lineSearchSweepStartMs = 0;
+  lineState = LineState();
 }
 
 float normalizeLineReading(int reading, float whiteValue, float darkValue) {
@@ -36,31 +22,50 @@ byte clampLineMotorPercent(float speed) {
   return constrain((int)(speed + 0.5), LINE_MIN_SPEED_PERCENT, 100);
 }
 
+byte approachLineMotorSpeed(byte current, byte target) {
+  if (target > current + LINE_MOTOR_SLEW_PERCENT_PER_UPDATE) {
+    return current + LINE_MOTOR_SLEW_PERCENT_PER_UPDATE;
+  }
+  if (current > target + LINE_MOTOR_SLEW_PERCENT_PER_UPDATE) {
+    return current - LINE_MOTOR_SLEW_PERCENT_PER_UPDATE;
+  }
+  return target;
+}
+
+void driveLineSmoothly(byte leftTarget, byte rightTarget) {
+  if (lineState.motorCommand) {
+    leftTarget = approachLineMotorSpeed(lineState.leftSpeed, leftTarget);
+    rightTarget = approachLineMotorSpeed(lineState.rightSpeed, rightTarget);
+  }
+  drive(leftTarget, rightTarget, HIGH, HIGH);
+  lineState.leftSpeed = leftTarget;
+  lineState.rightSpeed = rightTarget;
+  lineState.motorCommand = true;
+}
+
 void startLineSearch(unsigned long nowMs) {
-  lineSearching = true;
-  lineSearchSweep = 0;
-  lineSearchSweepStartMs = nowMs;
-  lineFoundSamples = 0;
-  hasPreviousLineError = false;
+  lineState.searching = true;
+  lineState.searchStartMs = nowMs;
+  lineState.found = 0;
+  lineState.motorCommand = false;
 }
 
 void searchForLine(unsigned long nowMs) {
-  // Sweep toward the last visible side first, then across the other side.
-  // Increasing sweep times make the scan cover both sides of the last heading.
-  while (lineSearchSweep < LINE_SEARCH_SWEEPS &&
-         nowMs - lineSearchSweepStartMs >=
-             LINE_SEARCH_FIRST_SWEEP_MS * (lineSearchSweep + 1UL)) {
-    lineSearchSweepStartMs += LINE_SEARCH_FIRST_SWEEP_MS * (lineSearchSweep + 1UL);
-    lineSearchSweep++;
+  // Turn toward the last visible side, then sweep the other side.
+  unsigned long elapsed = nowMs - lineState.searchStartMs;
+  byte sweep = 0;
+  while (sweep < LINE_SEARCH_SWEEPS && elapsed >= LINE_SEARCH_FIRST_SWEEP_MS * (sweep + 1UL)) {
+    elapsed -= LINE_SEARCH_FIRST_SWEEP_MS * (sweep + 1UL);
+    sweep++;
   }
 
-  if (lineSearchSweep >= LINE_SEARCH_SWEEPS) {
+  if (sweep >= LINE_SEARCH_SWEEPS) {
     stopCar(); // Do not roam indefinitely if the line is outside the scan.
     return;
   }
 
-  int direction = lineLastDirection == 0 ? -1 : lineLastDirection;
-  if (lineSearchSweep & 1) direction = -direction;
+  int direction = lineState.direction == 0 ? -1 : lineState.direction;
+  if (sweep & 1) direction = -direction;
   if (direction < 0) {
     drive(LINE_SEARCH_TURN_PERCENT, LINE_SEARCH_TURN_PERCENT, LOW, HIGH);
   } else {
@@ -70,76 +75,63 @@ void searchForLine(unsigned long nowMs) {
 
 void followLine() {
   const unsigned long nowMs = millis();
-  if (previousLineUpdateMs && nowMs - previousLineUpdateMs < LINE_CONTROL_INTERVAL_MS) return;
-  const unsigned long elapsedMs = previousLineUpdateMs ? nowMs - previousLineUpdateMs : LINE_CONTROL_INTERVAL_MS;
-  previousLineUpdateMs = nowMs;
+  if (lineState.lastUpdateMs && nowMs - lineState.lastUpdateMs < LINE_CONTROL_INTERVAL_MS) return;
+  lineState.lastUpdateMs = nowMs;
 
   const float leftLineRaw = normalizeLineReading(analogRead(LINE_LEFT_PIN), LINE_LEFT_WHITE_VALUE, LINE_LEFT_DARK_VALUE);
   const float rightLineRaw = normalizeLineReading(analogRead(LINE_RIGHT_PIN), LINE_RIGHT_WHITE_VALUE, LINE_RIGHT_DARK_VALUE);
 
-  if (lineSearching) {
+  if (lineState.searching) {
     // Use fresh readings here: the filter can retain a dark value after the
     // sensor has already left the line. Pause briefly to confirm a real hit.
     if (leftLineRaw >= LINE_REACQUIRE_THRESHOLD || rightLineRaw >= LINE_REACQUIRE_THRESHOLD) {
-      lineFoundSamples++;
+      lineState.found++;
       stopCar();
-      if (lineFoundSamples < LINE_REACQUIRE_CONFIRM_SAMPLES) return;
-      lineSearching = false;
-      lineMissingSamples = 0;
-      hasPreviousLineError = false;
-      filteredLeftLine = leftLineRaw;
-      filteredRightLine = rightLineRaw;
-      hasFilteredLineReadings = true;
+      if (lineState.found < LINE_REACQUIRE_CONFIRM_SAMPLES) return;
+      lineState.searching = false;
+      lineState.missing = 0;
+      lineState.motorCommand = false;
+      lineState.leftFiltered = leftLineRaw;
+      lineState.rightFiltered = rightLineRaw;
+      lineState.filtered = true;
     } else {
-      lineFoundSamples = 0;
+      lineState.found = 0;
       searchForLine(nowMs);
       return;
     }
   }
 
   if (leftLineRaw < LINE_LOST_THRESHOLD && rightLineRaw < LINE_LOST_THRESHOLD) {
-    lineMissingSamples++;
-    if (lineMissingSamples >= LINE_LOST_CONFIRM_SAMPLES) {
+    lineState.missing++;
+    if (lineState.missing >= LINE_LOST_CONFIRM_SAMPLES) {
       startLineSearch(nowMs);
       searchForLine(nowMs);
     }
     // Keep the last steering command through one uncertain sample.
     return;
   }
-  lineMissingSamples = 0;
+  lineState.missing = 0;
 
-  if (!hasFilteredLineReadings) {
-    filteredLeftLine = leftLineRaw;
-    filteredRightLine = rightLineRaw;
-    hasFilteredLineReadings = true;
+  if (!lineState.filtered) {
+    lineState.leftFiltered = leftLineRaw;
+    lineState.rightFiltered = rightLineRaw;
+    lineState.filtered = true;
   } else {
-    filteredLeftLine += LINE_SENSOR_FILTER_ALPHA * (leftLineRaw - filteredLeftLine);
-    filteredRightLine += LINE_SENSOR_FILTER_ALPHA * (rightLineRaw - filteredRightLine);
+    lineState.leftFiltered += LINE_SENSOR_FILTER_ALPHA * (leftLineRaw - lineState.leftFiltered);
+    lineState.rightFiltered += LINE_SENSOR_FILTER_ALPHA * (rightLineRaw - lineState.rightFiltered);
   }
 
-  float error = filteredLeftLine - filteredRightLine;
+  float error = lineState.leftFiltered - lineState.rightFiltered;
   if (error > -LINE_ERROR_DEADBAND && error < LINE_ERROR_DEADBAND) error = 0.0;
-  if (error > LINE_DIRECTION_THRESHOLD) lineLastDirection = -1;
-  else if (error < -LINE_DIRECTION_THRESHOLD) lineLastDirection = 1;
+  if (error > LINE_DIRECTION_THRESHOLD) lineState.direction = -1;
+  else if (error < -LINE_DIRECTION_THRESHOLD) lineState.direction = 1;
 
-  if (error >= LINE_SHARP_CORNER_THRESHOLD) {
-    drive(0, LINE_SHARP_CORNER_OUTER_PERCENT, HIGH, HIGH);
-  } else if (error <= -LINE_SHARP_CORNER_THRESHOLD) {
-    drive(LINE_SHARP_CORNER_OUTER_PERCENT, 0, HIGH, HIGH);
-  } else {
-    const float derivative = hasPreviousLineError ?
-        (error - previousLineError) * LINE_CONTROL_INTERVAL_MS / elapsedMs : 0.0;
-    const float correction = constrain(LINE_KP * error + LINE_KD * derivative,
-                                       -LINE_MAX_CORRECTION_PERCENT, LINE_MAX_CORRECTION_PERCENT);
-    const float absoluteError = error < 0.0 ? -error : error;
-    const float cornerBaseSpeed = LINE_BASE_SPEED_PERCENT - LINE_CORNER_SLOWDOWN_PERCENT * absoluteError;
-    const byte leftSpeed = clampLineMotorPercent(cornerBaseSpeed - correction);
-    const byte rightSpeed = clampLineMotorPercent(cornerBaseSpeed + correction);
-    drive(leftSpeed, rightSpeed, HIGH, HIGH);
-  }
-
-  previousLineError = error;
-  hasPreviousLineError = true;
+  const float correction = LINE_KP * error;
+  const float absoluteError = error < 0.0 ? -error : error;
+  const float cornerBaseSpeed = LINE_BASE_SPEED_PERCENT - LINE_CORNER_SLOWDOWN_PERCENT * absoluteError;
+  const byte leftSpeed = clampLineMotorPercent(cornerBaseSpeed - correction);
+  const byte rightSpeed = clampLineMotorPercent(cornerBaseSpeed + correction);
+  driveLineSmoothly(leftSpeed, rightSpeed);
 }
 
 #endif
