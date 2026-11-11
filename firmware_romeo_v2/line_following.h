@@ -81,6 +81,20 @@ void followLine() {
   const float leftLineRaw = normalizeLineReading(analogRead(LINE_LEFT_PIN), LINE_LEFT_WHITE_VALUE, LINE_LEFT_DARK_VALUE);
   const float rightLineRaw = normalizeLineReading(analogRead(LINE_RIGHT_PIN), LINE_RIGHT_WHITE_VALUE, LINE_RIGHT_DARK_VALUE);
 
+  if (LINE_WHITE_WHITE_IS_CENTERED &&
+      leftLineRaw < LINE_LOST_THRESHOLD && rightLineRaw < LINE_LOST_THRESHOLD) {
+    // In this sensor layout the line is between the sensors. Keep moving
+    // straight instead of treating two white readings as a lost line.
+    lineState.searching = false;
+    lineState.missing = 0;
+    lineState.found = 0;
+    lineState.leftFiltered = leftLineRaw;
+    lineState.rightFiltered = rightLineRaw;
+    lineState.filtered = true;
+    driveLineSmoothly(LINE_BASE_SPEED_PERCENT, LINE_BASE_SPEED_PERCENT);
+    return;
+  }
+
   if (lineState.searching) {
     // Use fresh readings here: the filter can retain a dark value after the
     // sensor has already left the line. Pause briefly to confirm a real hit.

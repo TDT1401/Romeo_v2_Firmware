@@ -21,6 +21,8 @@ const byte LINE_BASE_SPEED_PERCENT = 34;
 const byte LINE_MIN_SPEED_PERCENT = 26;
 const byte LINE_CORNER_SLOWDOWN_PERCENT = 4;
 const float LINE_KP = 10.0;
+// With the two IR spots just outside the black line, both read white when centered.
+const bool LINE_WHITE_WHITE_IS_CENTERED = true;
 const float LINE_LOST_THRESHOLD = 0.12;
 const float LINE_REACQUIRE_THRESHOLD = 0.30;
 const float LINE_ERROR_DEADBAND = 0.08;
@@ -37,20 +39,27 @@ const unsigned long LINE_SEARCH_FIRST_SWEEP_MS = 400;
 // HC-SR04 pins
 const byte TRIG_PIN_1 = 8, ECHO_PIN_1 = 9;
 const byte TRIG_PIN_2 = 10, ECHO_PIN_2 = 11;
-const int SAFE_DISTANCE = 20;
-const int TURN_90_TIME = 250;
+const int SAFE_DISTANCE = 15; // cm; tune on the test course
+const unsigned long SONAR_SAMPLE_INTERVAL_MS = 50; // alternate sensors, 100 ms per sensor
+const byte OBSTACLE_CONFIRM_SAMPLES = 2;
+const unsigned long TURN_90_TIME = 250;
+const unsigned long AVOID_OFFSET_MS = 500;
+const unsigned long AVOID_PASS_MS = 1000;
+const unsigned long RETURN_SEARCH_TIMEOUT_MS = 2500;
+const byte RETURN_LINE_CONFIRM_SAMPLES = 2;
 
 // Romeo V2 button inputs are read from analog pin A0.
 const byte BUTTON_PIN = A0;
-const int BUTTON_LEVELS[] = {30, 150, 360, 535, 760};
-const byte BUTTON_COUNT = 5;
-enum CarMode { STOPPED, OBSTACLE_AVOIDANCE_MODE, LINE_FOLLOWING_MODE };
-CarMode carMode = STOPPED;
+const int BUTTON_LEVELS[] = {30, 150}; // S1 and S2 only; S3 has no action
+const byte BUTTON_COUNT = 2;
+enum RobotState { STOPPED, LINE_FOLLOW, AVOID_OBSTACLE, RETURN_TO_LINE, FAULT };
+RobotState robotState = STOPPED;
 int lastButton = -1;
 
 #include "motor_control.h"
 #include "line_following.h"
 #include "distance_sensors.h"
+#include "robot_afsm.h"
 #include "buttons_modes.h"
 
 void setup() {
@@ -74,23 +83,5 @@ void setup() {
 }
 void loop() {
   handleButtons();
-  if (carMode == STOPPED) {
-    delay(20);
-    return;
-  }
-  if (carMode == LINE_FOLLOWING_MODE) {
-    followLine();
-    delay(5);
-    return;
-  }
-
-  float distance1 = getDistance(TRIG_PIN_1, ECHO_PIN_1);
-  delay(50);
-  float distance2 = getDistance(TRIG_PIN_2, ECHO_PIN_2);
-  if (isObstacle(distance1) || isObstacle(distance2)) {
-    avoidObstacle();
-    handleButtons();
-  }
-  if (carMode == OBSTACLE_AVOIDANCE_MODE) goForward();
-  delay(carMode == LINE_FOLLOWING_MODE ? 5 : 50);
+  updateRobotAfsm();
 }

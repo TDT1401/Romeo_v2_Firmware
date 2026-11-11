@@ -32,4 +32,8 @@ void turnRight() {
   drive(TURN_SPEED_LEFT_PERCENT, TURN_SPEED_RIGHT_PERCENT, HIGH, LOW);
 }
 
+void turnLeft() {
+  drive(TURN_SPEED_LEFT_PERCENT, TURN_SPEED_RIGHT_PERCENT, LOW, HIGH);
+}
+
 #endif

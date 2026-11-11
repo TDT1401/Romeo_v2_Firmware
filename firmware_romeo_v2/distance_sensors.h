@@ -10,7 +10,7 @@ float getDistance(byte trigPin, byte echoPin) {
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
 
-  long duration = pulseIn(echoPin, HIGH, 30000);
+  long duration = pulseIn(echoPin, HIGH, 12000);
   return duration ? duration * 0.0343 / 2.0 : -1;
 }
 

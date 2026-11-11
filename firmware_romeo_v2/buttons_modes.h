@@ -2,20 +2,7 @@
 #define BUTTONS_MODES_H
 
 void selectStopMode() {
-  carMode = STOPPED;
-  stopCar();
-}
-
-void selectObstacleAvoidanceMode() {
-  carMode = OBSTACLE_AVOIDANCE_MODE;
-  goForward();
-}
-
-void selectLineFollowingMode() {
-  carMode = LINE_FOLLOWING_MODE;
-  resetLineFollow();
-  Serial.println("MODE: LINE_FOLLOWING (S3)");
-  followLine();
+  stopAutonomousRun();
 }
 
 int readButton() {
@@ -36,23 +23,9 @@ void handleButtons() {
   lastButton = button;
 
   switch (button) {
-    case 0: selectStopMode();              break;  // S1: stop
-    case 1: selectObstacleAvoidanceMode(); break;  // S2: follow node
-    case 2: selectLineFollowingMode();     break;  // S3: line-follow mode
+    case 0: selectStopMode();      break; // S1: stop at any point
+    case 1: startAutonomousRun();  break; // S2: line follow + obstacle avoidance
   }
-}
-
-void avoidObstacle() {
-  stopCar();
-  delay(200);
-  goBackward();
-  delay(500);
-  stopCar();
-  delay(200);
-  turnRight();
-  delay(TURN_90_TIME);
-  stopCar();
-  delay(200);
 }
 
 #endif
