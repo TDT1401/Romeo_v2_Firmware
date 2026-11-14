@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1220" viewBox="0 0 1280 1220" role="img" aria-labelledby="title desc">
+  <title id="title">Sơ đồ AFSM RobotCar Romeo V2</title>
+  <desc id="desc">Năm trạng thái chính và các giai đoạn con của quá trình né vật cản, tìm lại vạch.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M1 1 L9 5 L1 9" fill="none" stroke="#55a9e7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="small-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 L9 5 L1 9" fill="none" stroke="#1c587f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      .bg { fill: #061522; }
+      .line { fill: none; stroke: #55a9e7; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#arrow); }
+      .internal-line { fill: none; stroke: #1c587f; stroke-width: 2.5; stroke-linecap: round; marker-end: url(#small-arrow); }
+      .title { fill: #e7f3ff; font: 700 34px 'Segoe UI', Arial, sans-serif; text-anchor: middle; }
+      .state-name { fill: #0b3954; font: 700 27px 'Segoe UI', Arial, sans-serif; text-anchor: middle; }
+      .stage-name { fill: #0b3954; font: 700 16px 'Segoe UI', Arial, sans-serif; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1280" height="1220"/>
+  <text class="title" x="640" y="65">SƠ ĐỒ AFSM ROBOTCAR</text>
+
+  <!-- Chuyển trạng thái -->
+  <path class="line" d="M640 222 V315"/>
+  <path class="line" d="M640 415 V520"/>
+  <path class="line" d="M640 830 V920"/>
+  <path class="line" d="M270 1065 H91 V365 H382"/>
+  <path class="line" d="M990 1030 H1022"/>
+  <path class="line" d="M1225 1030 H1250 V365 H898"/>
+
+  <g id="stopped">
+    <rect x="459" y="130" width="362" height="92" rx="25" fill="#ededed" stroke="#b8b8b8" stroke-width="2.5"/>
+    <text class="state-name" x="640" y="185">STOPPED</text>
+  </g>
+
+  <g id="line-follow">
+    <rect x="382" y="315" width="516" height="100" rx="25" fill="#d4ebfa" stroke="#58b7f4" stroke-width="2.7"/>
+    <text class="state-name" x="640" y="375">LINE_FOLLOW</text>
+  </g>
+
+  <g id="avoid-obstacle">
+    <rect x="185" y="520" width="910" height="310" rx="28" fill="#ffe9cc" stroke="#f8ad4b" stroke-width="2.7"/>
+    <text class="state-name" x="640" y="575">AVOID_OBSTACLE</text>
+
+    <path class="internal-line" d="M365 705 H380"/>
+    <path class="internal-line" d="M542 705 H557"/>
+    <path class="internal-line" d="M719 705 H734"/>
+    <path class="internal-line" d="M896 705 H911"/>
+
+    <g>
+      <rect x="207" y="640" width="158" height="130" rx="17" fill="#fff8ed" stroke="#eab579" stroke-width="1.7"/>
+      <text class="stage-name" x="286" y="711">TURN_OUT</text>
+    </g>
+    <g>
+      <rect x="384" y="640" width="158" height="130" rx="17" fill="#fff8ed" stroke="#eab579" stroke-width="1.7"/>
+      <text class="stage-name" x="463" y="711">MOVE_OFFSET</text>
+    </g>
+    <g>
+      <rect x="561" y="640" width="158" height="130" rx="17" fill="#fff8ed" stroke="#eab579" stroke-width="1.7"/>
+      <text class="stage-name" x="640" y="711">TURN_PARALLEL</text>
+    </g>
+    <g>
+      <rect x="738" y="640" width="158" height="130" rx="17" fill="#fff8ed" stroke="#eab579" stroke-width="1.7"/>
+      <text class="stage-name" x="817" y="711">PASS_OBSTACLE</text>
+    </g>
+    <g>
+      <rect x="915" y="640" width="158" height="130" rx="17" fill="#fff8ed" stroke="#eab579" stroke-width="1.7"/>
+      <text class="stage-name" x="994" y="711">TURN_IN</text>
+    </g>
+  </g>
+
+  <g id="return-to-line">
+    <rect x="270" y="920" width="720" height="220" rx="28" fill="#d1f4e4" stroke="#51dc8d" stroke-width="2.7"/>
+    <text class="state-name" x="630" y="974">RETURN_TO_LINE</text>
+
+    <path class="internal-line" d="M605 1065 H650"/>
+    <g>
+      <rect x="306" y="1020" width="299" height="90" rx="17" fill="#effff7" stroke="#7bd7a8" stroke-width="1.7"/>
+      <text class="stage-name" x="455.5" y="1072">SEARCH_LINE</text>
+    </g>
+    <g>
+      <rect x="654" y="1020" width="299" height="90" rx="17" fill="#effff7" stroke="#7bd7a8" stroke-width="1.7"/>
+      <text class="stage-name" x="803.5" y="1072">ALIGN_HEADING</text>
+    </g>
+  </g>
+
+  <g id="fault">
+    <rect x="1022" y="980" width="203" height="103" rx="24" fill="#f7dddd" stroke="#e88989" stroke-width="2.5"/>
+    <text class="state-name" x="1123.5" y="1041">FAULT</text>
+  </g>
+</svg>
