@@ -42,10 +42,10 @@ const byte TRIG_PIN_2 = 10, ECHO_PIN_2 = 11;
 const int SAFE_DISTANCE = 15; // cm; tune on the test course
 const unsigned long SONAR_SAMPLE_INTERVAL_MS = 50; // alternate sensors, 100 ms per sensor
 const byte OBSTACLE_CONFIRM_SAMPLES = 2;
-const unsigned long TURN_90_TIME = 250;
-const unsigned long AVOID_OFFSET_MS = 500;
+const unsigned long TURN_90_TIME = 300;
+const unsigned long AVOID_OFFSET_MS = 400;
 const unsigned long AVOID_PASS_MS = 1000;
-const unsigned long RETURN_SEARCH_TIMEOUT_MS = 2500;
+const unsigned long RETURN_SEARCH_TIMEOUT_MS = 3500;
 const byte RETURN_LINE_CONFIRM_SAMPLES = 2;
 
 // Romeo V2 button inputs are read from analog pin A0.

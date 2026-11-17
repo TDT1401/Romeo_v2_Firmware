@@ -75,12 +75,12 @@ void updateAvoidance(unsigned long nowMs) {
       goForward();
       break;
     case MOVE_OFFSET:
-      if (nowMs - stageStartMs < AVOID_OFFSET_MS) return;
+      if (nowMs - stageStartMs < 600) return;
       avoidStage = TURN_PARALLEL;
       turnLeft();
       break;
     case TURN_PARALLEL:
-      if (nowMs - stageStartMs < TURN_90_TIME) return;
+      if (nowMs - stageStartMs < 300) return;
       avoidStage = PASS_OBSTACLE;
       goForward();
       break;
@@ -90,12 +90,12 @@ void updateAvoidance(unsigned long nowMs) {
       turnLeft();
       break;
     case TURN_IN:
-      if (nowMs - stageStartMs < TURN_90_TIME) return;
+      if (nowMs - stageStartMs < 100) return;
       robotState = RETURN_TO_LINE;
       returnStage = SEARCH_LINE;
       returnLineHits = 0;
       lastReturnSampleMs = nowMs - LINE_CONTROL_INTERVAL_MS;
-      goForward();
+      drive(31, 34, HIGH, HIGH); // Search slowly along a left arc.
       Serial.println("AFSM: RETURN_TO_LINE");
       break;
   }
@@ -105,7 +105,8 @@ void updateAvoidance(unsigned long nowMs) {
 bool lineSensorSeesBlack() {
   const float left = normalizeLineReading(analogRead(LINE_LEFT_PIN), LINE_LEFT_WHITE_VALUE, LINE_LEFT_DARK_VALUE);
   const float right = normalizeLineReading(analogRead(LINE_RIGHT_PIN), LINE_RIGHT_WHITE_VALUE, LINE_RIGHT_DARK_VALUE);
-  return left >= LINE_REACQUIRE_THRESHOLD || right >= LINE_REACQUIRE_THRESHOLD;
+  // return left >= LINE_REACQUIRE_THRESHOLD && right >= LINE_REACQUIRE_THRESHOLD;
+  return right >= LINE_REACQUIRE_THRESHOLD;
 }
 
 void updateReturnToLine(unsigned long nowMs) {
@@ -117,17 +118,19 @@ void updateReturnToLine(unsigned long nowMs) {
     if (nowMs - lastReturnSampleMs < LINE_CONTROL_INTERVAL_MS) return;
     lastReturnSampleMs = nowMs;
     if (!lineSensorSeesBlack()) {
-      if (returnLineHits) goForward();
+      if (returnLineHits) drive(46, 46, HIGH, HIGH);
       returnLineHits = 0;
       return;
     }
+    // stopCar(); // Temporary diagnostic: stop as soon as either IR sees black.
     if (++returnLineHits < RETURN_LINE_CONFIRM_SAMPLES) {
       stopCar(); // Hold position while confirming the line.
       return;
     }
     returnStage = ALIGN_HEADING;
     stageStartMs = nowMs;
-    turnRight(); // Restore the original forward heading.
+    // turnRight();
+    drive(40, 20, HIGH, HIGH);
     return;
   }
 
